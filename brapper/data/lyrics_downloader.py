@@ -1,29 +1,32 @@
-from lyricsgenius import Genius
-from pathlib import Path
 import datetime
 import time
+import uuid
+from pathlib import Path
+
+from lyricsgenius import Genius
+
 
 def __get_access_token() -> str:
     return "Awp1-RqQmLsXsBxkS7oEpET88sS-mTK06k-kbeJ_nK4cny6-cylEoduEpnZrwuB3"
 
 
-def __unescape(text: str) -> str:
+def __unescape_html(text: str) -> str:
+    """ Replace html escaped chars (<, >, &) with the normal character
+    :param text:str: Text to unescape
+    :rtype: Text with the original html escaped characters
+    """
     return text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
 
 
-def save_artist_songs(artist_name: str, num_of_songs: int = 15) -> None:
-    gen = Genius(__get_access_token())
+def save_artist_songs(artist_name: str, num_of_songs: int = 20) -> None:
+    """ Find the artist on Genius.com, download the lyrics to his most popular songs and save them into a file
+    :param artist_name:str: Name of the artist
+    :param num_of_songs:int: How many song lyrics should be saved
+    :rtype: None
+    """
     artist = gen.search_artist(artist_name, max_songs=num_of_songs, sort="popularity")
-    file_path = Path(__file__).parent.joinpath("lyrics", "randomID.txt") # TODO do a random hash for the file name
+    gen = Genius(__get_access_token())
+    file_path = Path(__file__).parent.joinpath("lyrics", f"{uuid.uuid4()}.txt")
     with open(file_path, "w+", encoding="utf-8") as file_:
         for song in artist.songs:
-            file_.write(f"{__unescape(song.lyrics)}\n\n")
-
-
-if __name__ == "__main__":
-    start_time = datetime.datetime.now()
-    save_artist_songs("Kendrick lamar")
-    end_time = datetime.datetime.now()
-    td = end_time - start_time
-    print(td)
-
+            file_.write(f"{__unescape_html(song.lyrics)}\n\n")
