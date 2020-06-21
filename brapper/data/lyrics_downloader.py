@@ -1,9 +1,27 @@
-import datetime
-import time
-import uuid
+import random
 from pathlib import Path
 
 from lyricsgenius import Genius
+
+from brapper.config import LYRICS_PATH
+
+
+def save_artist_songs(
+    artist_name: str, num_of_songs: int = 50, tmp: bool = True
+) -> None:
+    """ Find the artist on Genius.com, download the lyrics to his most popular songs and save them into a file
+    :param artist_name:str: Name of the artist
+    :param num_of_songs:int: How many song lyrics should be saved
+    :rtype: None
+    """
+    gen = Genius(__get_access_token())
+    artist = gen.search_artist(artist_name, max_songs=num_of_songs, sort="popularity")
+    file_path = LYRICS_PATH.joinpath(
+        "tmp" if tmp else "", f"{random.randint(1, 100000)}.txt"
+    )
+    with open(file_path, "w+", encoding="utf-8") as file_:
+        for song in artist.songs:
+            file_.write(f"{__unescape_html(song.lyrics)}\n\n")
 
 
 def __get_access_token() -> str:
@@ -18,15 +36,5 @@ def __unescape_html(text: str) -> str:
     return text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
 
 
-def save_artist_songs(artist_name: str, num_of_songs: int = 20) -> None:
-    """ Find the artist on Genius.com, download the lyrics to his most popular songs and save them into a file
-    :param artist_name:str: Name of the artist
-    :param num_of_songs:int: How many song lyrics should be saved
-    :rtype: None
-    """
-    artist = gen.search_artist(artist_name, max_songs=num_of_songs, sort="popularity")
-    gen = Genius(__get_access_token())
-    file_path = Path(__file__).parent.joinpath("lyrics", f"{uuid.uuid4()}.txt")
-    with open(file_path, "w+", encoding="utf-8") as file_:
-        for song in artist.songs:
-            file_.write(f"{__unescape_html(song.lyrics)}\n\n")
+if __name__ == "__main__":
+    save_artist_songs("Kendrick Lamar", num_of_songs=5, tmp=True)
