@@ -17,7 +17,7 @@ def save_artist_songs(
     gen = Genius(__get_access_token())
     artist = gen.search_artist(artist_name, max_songs=num_of_songs, sort="popularity")
     file_path = LYRICS_PATH.joinpath(
-        "tmp" if tmp else "", f"{random.randint(1, 100000)}.txt"
+        "tmp" if tmp else "", f"{random.randint(1, 100000)}"
     )
     with open(file_path, "w+", encoding="utf-8") as file_:
         for song in artist.songs:
@@ -25,7 +25,7 @@ def save_artist_songs(
 
 
 def __get_access_token() -> str:
-    return "Awp1-RqQmLsXsBxkS7oEpET88sS-mTK06k-kbeJ_nK4cny6-cylEoduEpnZrwuB3"
+    return "kZ-60qWhiJ1dE_GlqzylOz8FlzJoyG96PiUPTvbxoyRWYns9nOZCGC8cqTILtqjN"
 
 
 def __unescape_html(text: str) -> str:
@@ -37,4 +37,4 @@ def __unescape_html(text: str) -> str:
 
 
 if __name__ == "__main__":
-    save_artist_songs("Kendrick Lamar", num_of_songs=5, tmp=True)
+    save_artist_songs("Eminem", num_of_songs=300, tmp=False)
