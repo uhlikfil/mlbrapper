@@ -1,8 +1,11 @@
+import random
+import json
+
 import numpy as np
 import tensorflow as tf
 
 from brapper.config import (
-    CHECKPOINTS_PATH,
+    MODELS_PATH,
     DEF_BATCH_SIZE,
     DEF_BUFFER_SIZE,
     DEF_EMBEDDING_DIMENSION,
@@ -10,6 +13,9 @@ from brapper.config import (
     DEF_RNN_UNITS,
     DEF_SEQ_LEN,
     LYRICS_PATH,
+    VOCABS_PATH,
+    VOCAB_SIZE,
+    VOCAB_PLACEHOLDER,
     Path,
 )
 
@@ -22,9 +28,9 @@ def generate_lyrics(
     rnn_units: int = DEF_RNN_UNITS,
 ) -> str:
     generated_lyrics = []
-    model, vocabulary = __load_model(
-        model_name, batch_size=1, embedding_dim=embedding_dim, rnn_units=rnn_units,
-    )
+    old_vocab = __load_charmap(model_name)
+    vocabulary = __update_charmap(old_vocab, __create_charmap(start_lyrics))
+    model = __load_model(model_name, len(vocabulary), 1, embedding_dim, rnn_units)
     model.reset_states()
     encoded_lyrics = tf.expand_dims(__encode(start_lyrics, vocabulary), 0)
     for i in range(lyrics_size):
@@ -39,8 +45,8 @@ def generate_lyrics(
 
 
 def train_new_model(
-    artist_name: str,
-    lyrics_id: int,
+    model_name: str,
+    text: str,
     num_of_epochs: int = DEF_EPOCH_COUNT,
     seq_length: int = DEF_SEQ_LEN,
     buffer_size: int = DEF_BUFFER_SIZE,
@@ -48,8 +54,9 @@ def train_new_model(
     embedding_dim: int = DEF_EMBEDDING_DIMENSION,
     rnn_units: int = DEF_RNN_UNITS,
 ) -> None:
-    model_name = f'{artist_name.replace(" ", "-")}_{lyrics_id}'
-    encoded, vocabulary = __get_encoded_text_and_key(__get_lyrics_path(lyrics_id))
+    model_name = f'{model_name.replace(" ", "-")}_{random.randint(1, 100000)}'
+    vocabulary = __create_charmap(text)
+    encoded = __encode(text, vocabulary)
     dataset = __create_dataset(
         encoded, seq_length=seq_length, buffer_size=buffer_size, batch_size=batch_size
     )
@@ -59,12 +66,14 @@ def train_new_model(
         embedding_dim=embedding_dim,
         rnn_units=rnn_units,
     )
+    __save_charmap(vocabulary, model_name)
     __train_model(model, dataset, model_name, num_of_epochs=num_of_epochs)
+    return model_name
 
 
 def train_existing_model(
     model_name: str,
-    lyrics_id: int,
+    text: str,
     num_of_epochs: int = DEF_EPOCH_COUNT,
     seq_length: int = DEF_SEQ_LEN,
     buffer_size: int = DEF_BUFFER_SIZE,
@@ -72,16 +81,16 @@ def train_existing_model(
     embedding_dim: int = DEF_EMBEDDING_DIMENSION,
     rnn_units: int = DEF_RNN_UNITS,
 ) -> None:
-    encoded, _ = __get_encoded_text_and_key(__get_lyrics_path(lyrics_id))
+    old_vocab, new_vocab = __load_charmap(model_name), __create_charmap(text)
+    updated_vocab = __update_charmap(old_vocab, new_vocab)
+    encoded = __encode(text, updated_vocab)
     dataset = __create_dataset(
         encoded, seq_length=seq_length, buffer_size=buffer_size, batch_size=batch_size
     )
-    model, _ = __load_model(
-        model_name,
-        batch_size=batch_size,
-        embedding_dim=embedding_dim,
-        rnn_units=rnn_units,
+    model = __load_model(
+        model_name, len(updated_vocab), batch_size, embedding_dim, rnn_units
     )
+    __save_charmap(updated_vocab, model_name)
     __train_model(model, dataset, model_name, num_of_epochs=num_of_epochs)
 
 
@@ -100,21 +109,23 @@ def __train_model(model, dataset, model_name: str, num_of_epochs: int) -> None:
 
 
 def __load_model(
-    model_name: str, batch_size: int, embedding_dim: int, rnn_units: int
+    model_name: str,
+    vocab_size: int,
+    batch_size: int,
+    embedding_dim: int,
+    rnn_units: int,
 ) -> (tf.keras.Sequential, list):
-    lyrics_id = model_name.split("_")[-1]
-    _, vocabulary = __get_encoded_text_and_key(__get_lyrics_path(lyrics_id))
     model = __build_model(
-        len(vocabulary),
+        vocab_size=vocab_size,
         batch_size=batch_size,
         embedding_dim=embedding_dim,
         rnn_units=rnn_units,
     )
     model.load_weights(
-        tf.train.latest_checkpoint(CHECKPOINTS_PATH.joinpath(model_name))
-    )
+        tf.train.latest_checkpoint(MODELS_PATH.joinpath(model_name))
+    ).expect_partial()
     model.build(tf.TensorShape([1, None]))
-    return model, vocabulary
+    return model
 
 
 def __create_dataset(
@@ -167,24 +178,36 @@ def __create_checkpoint_callback(model_name: str):
     :rtype: Model checkpoint callback
     """
     return tf.keras.callbacks.ModelCheckpoint(
-        filepath=str(CHECKPOINTS_PATH.joinpath(model_name, "cp_{epoch}")),
+        filepath=str(MODELS_PATH.joinpath(model_name, "cp_{epoch}")),
         save_weights_only=True,
     )
 
 
-def __get_encoded_text_and_key(lyrics_path: str) -> (list, list):
-    with open(lyrics_path, "r", encoding="utf-8") as lyr_file:
-        text = lyr_file.read()
-        vocabulary = __create_char_map(text)
-        return __encode(text, vocabulary), vocabulary
-
-
-def __create_char_map(text: str) -> list:
+def __create_charmap(text: str) -> list:
     """ Creates a set of chars where index of char is its key
     :param text:str: Text to create the key for
     :rtype: Dict of int : char and set of chars where index in the set is the key
     """
-    return sorted(set(text))
+    result = sorted(set(text))
+    return result + [VOCAB_PLACEHOLDER] * (VOCAB_SIZE - len(result))
+
+
+def __update_charmap(old_charmap: list, new_charmap: list) -> list:
+    clean_old = old_charmap[: old_charmap.index(VOCAB_PLACEHOLDER)]
+    extra_chars = list(set(new_charmap) - set(old_charmap))
+    result = clean_old + extra_chars
+    return result + [VOCAB_PLACEHOLDER] * (VOCAB_SIZE - len(result))
+
+
+def __save_charmap(vocabulary: list, model_name: str) -> None:
+    VOCABS_PATH.mkdir(exist_ok=True, parents=True)
+    with open(VOCABS_PATH.joinpath(model_name), "w+", encoding="utf-8") as v_file:
+        json.dump(vocabulary, v_file)
+
+
+def __load_charmap(model_name: str) -> list:
+    with open(VOCABS_PATH.joinpath(model_name), "r", encoding="utf-8") as v_file:
+        return json.load(v_file)
 
 
 def __encode(text: str, char_map: list) -> list:
@@ -205,18 +228,16 @@ def __decode(encoded_text: list, char_map: list) -> str:
     return "".join([char_map[encoded_letter] for encoded_letter in encoded_text])
 
 
-def __get_lyrics_path(lyrics_id: int or str) -> Path:
-    return LYRICS_PATH.joinpath(str(lyrics_id))
-
-
 if __name__ == "__main__":
-    train_new_model("Eminem", 54799, 1)
+    from brapper.data import get_lyrics
+    lyrics = get_lyrics("Suboi_8")
+
+    #model_name = train_new_model("test", lyrics, 2)
+    model_name = "test_34715"
     for i in range(1, 11):
         print(f"STARTING TRAINING {i}")
-        train_existing_model("Eminem_54799", 54799, 5)
-        epochs_done = 1 + i * 5
+        train_existing_model(model_name, lyrics, 10)
+        epochs_done = 1 + i * 10
         print(f"GENERATING TEXT AFTER {epochs_done} EPOCHS")
         with open(f"after_epoch_{epochs_done}", "w+", encoding="utf-8") as e_file:
-            e_file.write(
-                generate_lyrics("Eminem_54799", "Roses are red, violets are blue", 3000)
-            )
+            e_file.write(generate_lyrics(model_name, "Beng mi phai co ba te ", 3000))
