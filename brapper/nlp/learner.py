@@ -12,11 +12,9 @@ from brapper.config import (
     DEF_EPOCH_COUNT,
     DEF_RNN_UNITS,
     DEF_SEQ_LEN,
-    LYRICS_PATH,
     VOCABS_PATH,
     VOCAB_SIZE,
     VOCAB_PLACEHOLDER,
-    Path,
 )
 
 
@@ -230,6 +228,7 @@ def __decode(encoded_text: list, char_map: list) -> str:
 
 if __name__ == "__main__":
     from brapper.data import get_lyrics
+    from brapper.config import RESULTS_PATH,
     lyrics = get_lyrics("Suboi_8")
 
     #model_name = train_new_model("test", lyrics, 2)
@@ -239,5 +238,6 @@ if __name__ == "__main__":
         train_existing_model(model_name, lyrics, 10)
         epochs_done = 1 + i * 10
         print(f"GENERATING TEXT AFTER {epochs_done} EPOCHS")
-        with open(f"after_epoch_{epochs_done}", "w+", encoding="utf-8") as e_file:
-            e_file.write(generate_lyrics(model_name, "Beng mi phai co ba te ", 3000))
+        file_name = RESULTS_PATH.joinpath(f"{model_name}_{epochs_done}")
+        with open(file_name, "w+", encoding="utf-8") as r_file:
+            r_file.write(generate_lyrics(model_name, "Beng mi phai co ba te ", 3000))
