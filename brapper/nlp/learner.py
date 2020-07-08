@@ -4,7 +4,7 @@ import json
 import numpy as np
 import tensorflow as tf
 
-from brapper.config import (
+from brapper.config.ml_config import (
     MODELS_PATH,
     DEF_BATCH_SIZE,
     DEF_BUFFER_SIZE,
@@ -12,9 +12,8 @@ from brapper.config import (
     DEF_EPOCH_COUNT,
     DEF_RNN_UNITS,
     DEF_SEQ_LEN,
-    VOCABS_PATH,
-    VOCAB_SIZE,
     VOCAB_PLACEHOLDER,
+    VOCAB_SIZE,
 )
 
 
@@ -51,7 +50,7 @@ def train_new_model(
     batch_size: int = DEF_BATCH_SIZE,
     embedding_dim: int = DEF_EMBEDDING_DIMENSION,
     rnn_units: int = DEF_RNN_UNITS,
-) -> None:
+) -> tuple:
     model_name = f'{model_name.replace(" ", "-")}_{random.randint(1, 100000)}'
     vocabulary = __create_charmap(text)
     encoded = __encode(text, vocabulary)
@@ -66,7 +65,7 @@ def train_new_model(
     )
     __save_charmap(vocabulary, model_name)
     __train_model(model, dataset, model_name, num_of_epochs=num_of_epochs)
-    return model_name
+    return model_name, vocabulary
 
 
 def train_existing_model(
@@ -78,7 +77,7 @@ def train_existing_model(
     batch_size: int = DEF_BATCH_SIZE,
     embedding_dim: int = DEF_EMBEDDING_DIMENSION,
     rnn_units: int = DEF_RNN_UNITS,
-) -> None:
+) -> tuple:
     old_vocab, new_vocab = __load_charmap(model_name), __create_charmap(text)
     updated_vocab = __update_charmap(old_vocab, new_vocab)
     encoded = __encode(text, updated_vocab)
@@ -88,8 +87,8 @@ def train_existing_model(
     model = __load_model(
         model_name, len(updated_vocab), batch_size, embedding_dim, rnn_units
     )
-    __save_charmap(updated_vocab, model_name)
     __train_model(model, dataset, model_name, num_of_epochs=num_of_epochs)
+    return model_name, vocabulary
 
 
 def __train_model(model, dataset, model_name: str, num_of_epochs: int) -> None:
@@ -197,17 +196,6 @@ def __update_charmap(old_charmap: list, new_charmap: list) -> list:
     return result + [VOCAB_PLACEHOLDER] * (VOCAB_SIZE - len(result))
 
 
-def __save_charmap(vocabulary: list, model_name: str) -> None:
-    VOCABS_PATH.mkdir(exist_ok=True, parents=True)
-    with open(VOCABS_PATH.joinpath(model_name), "w+", encoding="utf-8") as v_file:
-        json.dump(vocabulary, v_file)
-
-
-def __load_charmap(model_name: str) -> list:
-    with open(VOCABS_PATH.joinpath(model_name), "r", encoding="utf-8") as v_file:
-        return json.load(v_file)
-
-
 def __encode(text: str, char_map: list) -> list:
     """ Change each character in the text into a unique integer value
     :param text:str: Text to encode into integers
@@ -227,17 +215,4 @@ def __decode(encoded_text: list, char_map: list) -> str:
 
 
 if __name__ == "__main__":
-    from brapper.data import get_lyrics
-    from brapper.config import RESULTS_PATH,
-    lyrics = get_lyrics("Suboi_8")
-
-    #model_name = train_new_model("test", lyrics, 2)
-    model_name = "test_34715"
-    for i in range(1, 11):
-        print(f"STARTING TRAINING {i}")
-        train_existing_model(model_name, lyrics, 10)
-        epochs_done = 1 + i * 10
-        print(f"GENERATING TEXT AFTER {epochs_done} EPOCHS")
-        file_name = RESULTS_PATH.joinpath(f"{model_name}_{epochs_done}")
-        with open(file_name, "w+", encoding="utf-8") as r_file:
-            r_file.write(generate_lyrics(model_name, "Beng mi phai co ba te ", 3000))
+    pass

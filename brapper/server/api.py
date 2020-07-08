@@ -1,30 +1,21 @@
-#### USE CASES ####
+from brapper.config.server_config import BASE_API_URL
+from flask import Flask, jsonify, request, abort
+from brapper.controller import Controller 
 
-# GET ALL AVAILABLE TRAINED MODELS
-#   GET api/v1/models
-# returns list of trained models like [Eminem_53234, My-Model_36325]
+server = Flask(__name__.split('.')[0])
+ctl = Controller()
 
-
-# CREATE NEW SONG
-#   GET api/v1/compose
-#   payload = { model_name: "Eminem_53234", start_lyrics: "Roses are red, violets are blue" }
-# creates a new song based on the existing models - model chosen from the GET ALL AVAILABLE TRAINED MODELS request
-
-
-# TRAIN NEW MODEL
-#   POST api/v1/models
-#   payload = { model_name: My-Model, lyrics_id: 515165, num_of_epochs: 20 }
-# returns the full name of the created model (My-Model_15155)
-
-from brapper.controller import 
-from flask import Flask, jsonify
-
-
-server = Flask(__name__)
-
-@server.route("/models", methods=["GET"])
-def get_all_models():
+@server.route(f"{BASE_API_URL}/lyrics", methods=["GET"])
+def get_all_lyrics():
     return jsonify({"hello": "there"})
+
+
+@server.route(f"{BASE_API_URL}/lyrics", methods=["POST"])
+def create_lyrics():
+    if not request.json or "artist_name" not in request.json:
+        abort(400)
+    artist_name = request.json.get("artist_name")
+    ctl.download_lyrics(artist_name)
 
 
 if __name__ == "__main__":
