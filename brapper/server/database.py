@@ -1,14 +1,38 @@
 from pymongo import MongoClient
+from datetime import datetime
 
-db_client = MongoClient("mongodb://localhost:27017")
-
-
-def __save_charmap(vocabulary: list, model_name: str) -> None:
-    VOCABS_PATH.mkdir(exist_ok=True, parents=True)
-    with open(VOCABS_PATH.joinpath(model_name), "w+", encoding="utf-8") as v_file:
-        json.dump(vocabulary, v_file)
+from brapper.config.server_config import DB_PASS, DB_URI, DB_USER
 
 
-def __load_charmap(model_name: str) -> list:
-    with open(VOCABS_PATH.joinpath(model_name), "r", encoding="utf-8") as v_file:
-        return json.load(v_file)
+client = MongoClient(f"mongodb+srv://{DB_USER}:{DB_PASS}@{DB_URI}")
+db = client.brapper
+
+
+def save_lyrics(artist_name: str, lyrics: str, song_count: int) -> int:
+    to_insert = {
+        "artist": artist_name,
+        "lyrics": lyrics,
+        "num_of_songs": song_count,
+        "created": str(datetime.now()),
+    }
+    return db.lyrics.insert_one(to_insert)
+
+
+def update_lyrics(artist_name: str, lyrics: str, song_count: int) -> int:
+    query = { "artist": artist_name }
+    new_values = { 
+        "$set": {
+            "lyrics": lyrics,
+            "num_of_songs": song_count,
+            "created": str(datetime.now())
+        }
+    }
+    return db.lyrics.update_one(query, new_values)
+
+
+def get_all_lyrics() -> list:
+    return list(db.lyrics.find())
+
+
+if __name__ == "__main__":
+    pass

@@ -1,17 +1,17 @@
-import random
 import json
+import random
 
 import numpy as np
 import tensorflow as tf
 
 from brapper.config.ml_config import (
-    MODELS_PATH,
     DEF_BATCH_SIZE,
     DEF_BUFFER_SIZE,
     DEF_EMBEDDING_DIMENSION,
     DEF_EPOCH_COUNT,
     DEF_RNN_UNITS,
     DEF_SEQ_LEN,
+    MODELS_PATH,
     VOCAB_PLACEHOLDER,
     VOCAB_SIZE,
 )

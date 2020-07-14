@@ -1,3 +1,5 @@
 tensorflow-gpu
 lyricsgenius
 flask-pymongo
+dnspython
+beautifulsoup4

@@ -1,1 +1,0 @@
-from . lyrics_downloader import LyricsDownloader
