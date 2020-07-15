@@ -14,7 +14,7 @@ def handle_job_not_started(error):
         "job_id": None,
         "info": error.message,
     }
-    return response, error.status_code
+    return jsonify(response), error.status_code
 
 
 @server.route(f"{BASE_API_URL}/jobs/<int:job_id>", methods=["GET"])
@@ -25,14 +25,14 @@ def is_job_finished(job_id: int):
 
 @server.route(f"{BASE_API_URL}/lyrics", methods=["POST"])
 def create_lyrics():
-    if not request.json or "artist_name" not in request.json:
+    if not request.json or "artist" not in request.json:
         abort(400)
-    artist_name = request.json.get("artist_name")
+    artist_name = request.json.get("artist")
     response = {
         "job_id": ctl.download_lyrics(artist_name),
         "info": "The artist's lyrics are being downloaded",
     }
-    return response, 202
+    return jsonify(response), 202
 
 
 @server.route(f"{BASE_API_URL}/lyrics", methods=["GET"])
@@ -43,11 +43,17 @@ def get_all_lyrics():
 
 @server.route(f"{BASE_API_URL}/models", methods=["POST"])
 def create_model():
-    if not request.json or "model_name" not in request.json or "training_lyrics" not in request.json or "epochs" not in request.json:
+    if (
+        not request.json
+        or "model_name" not in request.json
+        or "based_on" not in request.json
+        or "epochs" not in request.json
+    ):
         abort(400)
     model_name = request.json.get("model_name")
-    training_lyrics = request.json.get("training_lyrics")
+    artists = request.json.get("based_on")
     epochs = request.json.get("epochs")
+    ctl.train_new_model(model_name, artists, epochs)
 
 
 if __name__ == "__main__":
