@@ -12,11 +12,14 @@ session.headers[
 ] = "Bearer kZ-60qWhiJ1dE_GlqzylOz8FlzJoyG96PiUPTvbxoyRWYns9nOZCGC8cqTILtqjN"
 
 
-def verify_artist_exists(artist_name: str) -> tuple or bool:
-    response = search_web(artist_name)
-    best_hit = response.get("hits")[0].get("result")
-    found_artist = best_hit.get("primary_artist")
-    return found_artist.get("id"), found_artist.get("name")
+def verify_artist_exists(artist_name: str) -> tuple:
+    hits = search_web(artist_name).get("hits")
+    if len(hits) > 0:
+        best_hit = hits[0].get("result")
+        found_artist = best_hit.get("primary_artist")
+        return found_artist.get("id"), found_artist.get("name")
+    else:
+        return None, None
 
 
 def download_artist_songs(artist_id: int, num_of_songs: int = 100) -> tuple:

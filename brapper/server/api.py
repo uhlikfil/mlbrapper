@@ -28,9 +28,10 @@ def create_lyrics():
     if not request.json or "artist" not in request.json:
         abort(400)
     artist_name = request.json.get("artist")
+    job_id, found_artist = ctl.download_lyrics(artist_name)
     response = {
-        "job_id": ctl.download_lyrics(artist_name),
-        "info": "The artist's lyrics are being downloaded",
+        "job_id": job_id,
+        "info": f"Found artist: {found_artist} - the artist's lyrics will be downloaded shortly",
     }
     return jsonify(response), 202
 
