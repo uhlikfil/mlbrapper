@@ -1,6 +1,5 @@
 import random
 from concurrent.futures.thread import ThreadPoolExecutor
-from datetime import datetime
 from brapper.data import lyrics_downloader as LyricsDownloader
 from brapper.nlp import learner as Learner
 from brapper.server import LyricsDAODTO
@@ -53,7 +52,7 @@ class Controller:
                     raise JobNotStartedError(
                         "The artist's lyrics were already downloaded before"
                     )
-                elif self.__is_new(entry.created):
+                elif entry.is_new():
                     raise JobNotStartedError(
                         "The artist's lyrics are being downloaded right now"
                     )
@@ -83,11 +82,6 @@ class Controller:
         self.running_jobs[
             job_id
         ] = f"{song_count} {artist_name} songs saved into the database"
-
-    def __is_new(self, iso_datetime: str) -> bool:
-        return (
-            datetime.now() - datetime.strptime(iso_datetime, "%Y-%m-%d %H:%M:%S.%f")
-        ).days < 1
 
     def train_new_model(
         self, model_name: str, artists: list, num_of_epochs: int

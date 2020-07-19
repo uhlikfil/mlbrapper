@@ -1,7 +1,7 @@
 from pymongo import MongoClient, errors as pymongo_errors
 from datetime import datetime
 
-from brapper.config.server_config import DB_PASS, DB_URI, DB_USER
+from brapper.config.server_config import DB_PASS, DB_URI, DB_USER, DB_TIME_FORMAT
 
 
 client = MongoClient(f"mongodb+srv://{DB_USER}:{DB_PASS}@{DB_URI}")
@@ -12,9 +12,15 @@ class BaseDAODTO(dict):
 
     db_name = None
 
-    def __init__(self, _id=None):
+    def __init__(self, _id=None, created: datetime = None):
         if _id:
             self._id = _id
+        if created == None:
+            self.created = str(datetime.now())
+        elif isinstance(created, str):
+            self.created = datetime.strptime(created, DB_TIME_FORMAT)
+        else:
+            self.created = created
 
     def __setattr__(self, name, value):
         self[name] = value
@@ -41,6 +47,13 @@ class BaseDAODTO(dict):
         copy["_id"] = str(copy.get("_id"))
         return copy
 
+    
+    def is_new(self) -> bool:
+        try:
+            return (datetime.now() - self.created).days < 1
+        except TypeError:
+            return False
+
     @classmethod
     def get_all(cls):
         result = list(db[cls.db_name].find())
@@ -63,11 +76,10 @@ class LyricsDAODTO(BaseDAODTO):
         created: datetime = None,
         _id=None,
     ):
-        super().__init__(_id)
+        super().__init__(_id, created)
         self.artist = artist
         self.lyrics = lyrics
         self.song_count = song_count
-        self.created = created if created != None else str(datetime.now())
 
     @staticmethod
     def load_from_dict(db_dict: dict):
