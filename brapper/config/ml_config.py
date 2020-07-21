@@ -11,3 +11,6 @@ MODELS_PATH = rscs_base_path.joinpath("models")
 
 VOCAB_SIZE = 300
 VOCAB_PLACEHOLDER = "UNDEF"
+
+MIN_EPOCH_COUNT = 5
+MAX_EPOCH_COUNT = 100

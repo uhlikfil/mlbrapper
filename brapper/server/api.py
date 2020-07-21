@@ -51,14 +51,22 @@ def create_model():
         or "epochs" not in request.json
     ):
         abort(400)
-    model_name = request.json.get("model_name")
+    model_name = request.json.get("model_name").replace(" ", "-")
     artists = request.json.get("based_on")
     epochs = request.json.get("epochs")
-    ctl.train_new_model(model_name, artists, epochs)
+    if not isinstance(epochs, int):
+        abort(400)
     response = {
-        "job_id": job_id,
-        "info": f"Found artist: {found_artist} - the artist's lyrics will be downloaded shortly",
+        "job_id": ctl.train_new_model(model_name, artists, epochs),
+        "info": f"Model {model_name} will be trained shortly",
     }
+    return jsonify(response), 202
+
+
+@server.route(f"{BASE_API_URL}/models", methods=["GET"])
+def get_all_models():
+    model_list = ctl.get_all_models_in_db()
+    return jsonify(model_list)
 
 
 if __name__ == "__main__":

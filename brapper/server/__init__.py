@@ -1,1 +1,1 @@
-from .database import LyricsDAODTO
+from .database import LyricsDAODTO, VocabDAODTO

@@ -17,7 +17,7 @@ class BaseDAODTO(dict):
         if _id:
             self._id = _id
         if created == None:
-            self.created = str(datetime.now())
+            self.created = datetime.now()
         elif isinstance(created, str):
             self.created = datetime.strptime(created, DB_TIME_FORMAT)
         else:
@@ -30,14 +30,16 @@ class BaseDAODTO(dict):
         return self[name]
 
     def save(self):
+        self.created = datetime.now()
         try:
             result = db[self.db_name].insert_one(self)
             self._id = result.inserted_id
-            return result
         except pymongo_errors.DuplicateKeyError:
             query = {"_id": self._id}
             new_values = {"$set": self}
-            return db[self.db_name].update_one(query, new_values)
+            db[self.db_name].update_one(query, new_values)
+        finally:
+            return self
 
     def delete(self):
         query = {"_id": self._id}
@@ -48,9 +50,9 @@ class BaseDAODTO(dict):
         copy["_id"] = str(copy.get("_id"))
         return copy
 
-    def is_new(self) -> bool:
+    def is_newer(self, days_old: int) -> bool:
         try:
-            return (datetime.now() - self.created).days < 1
+            return (datetime.now() - self.created).days < days_old
         except TypeError:
             return False
 
@@ -61,7 +63,7 @@ class BaseDAODTO(dict):
 
     @classmethod
     def get_by_id(cls, _id: str):
-        result = db[cls.db_name].find_one({ "_id": ObjectId(_id) })
+        result = db[cls.db_name].find_one({"_id": ObjectId(_id)})
         return cls.load_from_dict(result)
 
     @classmethod
@@ -97,7 +99,28 @@ class LyricsDAODTO(BaseDAODTO):
         )
 
 
+class VocabDAODTO(BaseDAODTO):
+
+    db_name = "vocabs"
+
+    def __init__(
+        self, model_name: str, chars: list, created: datetime = None, _id=None,
+    ):
+        super().__init__(_id, created)
+        self.model_name = model_name
+        self.chars = chars
+
+    @staticmethod
+    def load_from_dict(db_dict: dict):
+        return VocabDAODTO(
+            db_dict.get("model_name"),
+            db_dict.get("chars"),
+            db_dict.get("created"),
+            db_dict.get("_id"),
+        )
+
+
 if __name__ == "__main__":
     pass
-    #l = LyricsDAODTO("eminem", "haha", 1)
+    # l = LyricsDAODTO("eminem", "haha", 1)
     # l.save()

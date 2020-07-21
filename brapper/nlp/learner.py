@@ -50,8 +50,7 @@ def train_new_model(
     batch_size: int = DEF_BATCH_SIZE,
     embedding_dim: int = DEF_EMBEDDING_DIMENSION,
     rnn_units: int = DEF_RNN_UNITS,
-) -> tuple:
-    model_name = model_name.replace(" ", "-")
+) -> list:
     vocabulary = __create_charmap(text)
     encoded = __encode(text, vocabulary)
     dataset = __create_dataset(
@@ -63,9 +62,8 @@ def train_new_model(
         embedding_dim=embedding_dim,
         rnn_units=rnn_units,
     )
-    __save_charmap(vocabulary, model_name)
     __train_model(model, dataset, model_name, epoch_count=epoch_count)
-    return model_name, vocabulary
+    return vocabulary
 
 
 def train_existing_model(
@@ -77,7 +75,7 @@ def train_existing_model(
     batch_size: int = DEF_BATCH_SIZE,
     embedding_dim: int = DEF_EMBEDDING_DIMENSION,
     rnn_units: int = DEF_RNN_UNITS,
-) -> tuple:
+) -> list:
     old_vocab, new_vocab = __load_charmap(model_name), __create_charmap(text)
     updated_vocab = __update_charmap(old_vocab, new_vocab)
     encoded = __encode(text, updated_vocab)
@@ -88,7 +86,7 @@ def train_existing_model(
         model_name, len(updated_vocab), batch_size, embedding_dim, rnn_units
     )
     __train_model(model, dataset, model_name, epoch_count=epoch_count)
-    return model_name, vocabulary
+    return vocabulary
 
 
 def __train_model(model, dataset, model_name: str, epoch_count: int) -> None:
@@ -125,29 +123,6 @@ def __load_model(
     return model
 
 
-def __create_dataset(
-    encoded_text: str, seq_length: int, buffer_size: int, batch_size: int,
-) -> list:
-    """ Turns the list of ints (encoded text) into a trainable dataset
-        The list of encoded chars is divided into vectors with dimension of seq_length + 1
-        These vectors are transformed into train tuples of input-target (for predicting the last character of the sequence)
-        The training tuples are shuffled and batched into groups of batch_size
-    :param encoded_text:str: List of characters encoded into ints
-    :param seq_length:int: Dimension of the training vectors
-    :param buffer_size:int: The training data is loaded into buffers
-    :param batch_size:int: How many training vector tuples are there in one batch
-    :rtype: Model checkpoint callback
-    """
-    # load the chars represented as ints as a dataset
-    base_dataset = tf.data.Dataset.from_tensor_slices(encoded_text)
-    # divide them into batches (sequences of chars)
-    sequences = base_dataset.batch(seq_length + 1, drop_remainder=True)
-    # create tuples of input-output for training
-    inp_outp_dataset = sequences.map(lambda batch: (batch[:-1], batch[1:]))
-    # shuffle the training data and batch it again
-    return inp_outp_dataset.shuffle(buffer_size).batch(batch_size, drop_remainder=True)
-
-
 def __build_model(
     vocab_size: int, batch_size: int, embedding_dim: int, rnn_units: int,
 ) -> tf.keras.Sequential:
@@ -178,6 +153,29 @@ def __create_checkpoint_callback(model_name: str):
         filepath=str(MODELS_PATH.joinpath(model_name, "cp_{epoch}")),
         save_weights_only=True,
     )
+
+
+def __create_dataset(
+    encoded_text: str, seq_length: int, buffer_size: int, batch_size: int,
+) -> list:
+    """ Turns the list of ints (encoded text) into a trainable dataset
+        The list of encoded chars is divided into vectors with dimension of seq_length + 1
+        These vectors are transformed into train tuples of input-target (for predicting the last character of the sequence)
+        The training tuples are shuffled and batched into groups of batch_size
+    :param encoded_text:str: List of characters encoded into ints
+    :param seq_length:int: Dimension of the training vectors
+    :param buffer_size:int: The training data is loaded into buffers
+    :param batch_size:int: How many training vector tuples are there in one batch
+    :rtype: Model checkpoint callback
+    """
+    # load the chars represented as ints as a dataset
+    base_dataset = tf.data.Dataset.from_tensor_slices(encoded_text)
+    # divide them into batches (sequences of chars)
+    sequences = base_dataset.batch(seq_length + 1, drop_remainder=True)
+    # create tuples of input-output for training
+    inp_outp_dataset = sequences.map(lambda batch: (batch[:-1], batch[1:]))
+    # shuffle the training data and batch it again
+    return inp_outp_dataset.shuffle(buffer_size).batch(batch_size, drop_remainder=True)
 
 
 def __create_charmap(text: str) -> list:
