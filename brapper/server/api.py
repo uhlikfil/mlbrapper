@@ -55,6 +55,10 @@ def create_model():
     artists = request.json.get("based_on")
     epochs = request.json.get("epochs")
     ctl.train_new_model(model_name, artists, epochs)
+    response = {
+        "job_id": job_id,
+        "info": f"Found artist: {found_artist} - the artist's lyrics will be downloaded shortly",
+    }
 
 
 if __name__ == "__main__":

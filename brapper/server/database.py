@@ -1,4 +1,5 @@
 from pymongo import MongoClient, errors as pymongo_errors
+from bson.objectid import ObjectId
 from datetime import datetime
 
 from brapper.config.server_config import DB_PASS, DB_URI, DB_USER, DB_TIME_FORMAT
@@ -47,7 +48,6 @@ class BaseDAODTO(dict):
         copy["_id"] = str(copy.get("_id"))
         return copy
 
-    
     def is_new(self) -> bool:
         try:
             return (datetime.now() - self.created).days < 1
@@ -55,13 +55,18 @@ class BaseDAODTO(dict):
             return False
 
     @classmethod
-    def get_all(cls):
+    def get_all(cls) -> list:
         result = list(db[cls.db_name].find())
         return [cls.load_from_dict(db_entry) for db_entry in result]
 
     @classmethod
+    def get_by_id(cls, _id: str):
+        result = db[cls.db_name].find_one({ "_id": ObjectId(_id) })
+        return cls.load_from_dict(result)
+
+    @classmethod
     def load_from_dict(cls, db_dict: dict):
-        raise NotImplementedError("Must be overriden in derived class")
+        raise NotImplementedError("Must be overriden in the derived class")
 
 
 class LyricsDAODTO(BaseDAODTO):
@@ -93,5 +98,6 @@ class LyricsDAODTO(BaseDAODTO):
 
 
 if __name__ == "__main__":
-    l = LyricsDAODTO("eminem", "haha", 1)
+    pass
+    #l = LyricsDAODTO("eminem", "haha", 1)
     # l.save()

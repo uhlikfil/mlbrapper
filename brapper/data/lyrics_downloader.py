@@ -22,22 +22,22 @@ def verify_artist_exists(artist_name: str) -> tuple:
         return None, None
 
 
-def download_artist_songs(artist_id: int, num_of_songs: int = 100) -> tuple:
+def download_artist_songs(artist_id: int, song_count: int = 100) -> tuple:
     """ Find the artist on Genius.com, download the lyrics to their most popular songs
     :param artist_name:str: Name of the artist
-    :param num_of_songs:int: How many song lyrics should be downloaded (maximum)
+    :param song_count:int: How many song lyrics should be downloaded (maximum)
     :rtype: All the songs in one string, Number of songs actually downloaded
     """
     page = 1
     lyrics = []
-    while page and len(lyrics) < num_of_songs:
+    while page and len(lyrics) < song_count:
         songs_response = get_songs(artist_id, page=page)
         for song_info in songs_response.get("songs"):
             if "title" in song_info and __result_is_lyrics(song_info.get("title")):
                 song_lyrics = __scrape_song_lyrics_from_url(song_info.get("url"))
                 if song_lyrics:
                     lyrics.append(song_lyrics)
-                if len(lyrics) >= num_of_songs:
+                if len(lyrics) >= song_count:
                     break
         page = songs_response.get("next_page")
     return (

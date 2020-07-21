@@ -44,14 +44,14 @@ def generate_lyrics(
 def train_new_model(
     model_name: str,
     text: str,
-    num_of_epochs: int = DEF_EPOCH_COUNT,
+    epoch_count: int = DEF_EPOCH_COUNT,
     seq_length: int = DEF_SEQ_LEN,
     buffer_size: int = DEF_BUFFER_SIZE,
     batch_size: int = DEF_BATCH_SIZE,
     embedding_dim: int = DEF_EMBEDDING_DIMENSION,
     rnn_units: int = DEF_RNN_UNITS,
 ) -> tuple:
-    model_name = f'{model_name.replace(" ", "-")}_{random.randint(1, 100000)}'
+    model_name = model_name.replace(" ", "-")
     vocabulary = __create_charmap(text)
     encoded = __encode(text, vocabulary)
     dataset = __create_dataset(
@@ -64,14 +64,14 @@ def train_new_model(
         rnn_units=rnn_units,
     )
     __save_charmap(vocabulary, model_name)
-    __train_model(model, dataset, model_name, num_of_epochs=num_of_epochs)
+    __train_model(model, dataset, model_name, epoch_count=epoch_count)
     return model_name, vocabulary
 
 
 def train_existing_model(
     model_name: str,
     text: str,
-    num_of_epochs: int = DEF_EPOCH_COUNT,
+    epoch_count: int = DEF_EPOCH_COUNT,
     seq_length: int = DEF_SEQ_LEN,
     buffer_size: int = DEF_BUFFER_SIZE,
     batch_size: int = DEF_BATCH_SIZE,
@@ -87,11 +87,11 @@ def train_existing_model(
     model = __load_model(
         model_name, len(updated_vocab), batch_size, embedding_dim, rnn_units
     )
-    __train_model(model, dataset, model_name, num_of_epochs=num_of_epochs)
+    __train_model(model, dataset, model_name, epoch_count=epoch_count)
     return model_name, vocabulary
 
 
-def __train_model(model, dataset, model_name: str, num_of_epochs: int) -> None:
+def __train_model(model, dataset, model_name: str, epoch_count: int) -> None:
     model.compile(
         optimizer="adam",
         loss=lambda labels, logits: tf.keras.losses.sparse_categorical_crossentropy(
@@ -100,7 +100,7 @@ def __train_model(model, dataset, model_name: str, num_of_epochs: int) -> None:
     )
     model.fit(
         dataset,
-        epochs=num_of_epochs,
+        epochs=epoch_count,
         callbacks=[__create_checkpoint_callback(model_name)],
     )
 
