@@ -68,6 +68,7 @@ def train_new_model(
 
 def train_existing_model(
     model_name: str,
+    vocabulary: list,
     text: str,
     epoch_count: int = DEF_EPOCH_COUNT,
     seq_length: int = DEF_SEQ_LEN,
@@ -76,8 +77,8 @@ def train_existing_model(
     embedding_dim: int = DEF_EMBEDDING_DIMENSION,
     rnn_units: int = DEF_RNN_UNITS,
 ) -> list:
-    old_vocab, new_vocab = __load_charmap(model_name), __create_charmap(text)
-    updated_vocab = __update_charmap(old_vocab, new_vocab)
+    new_vocab = __create_charmap(text)
+    updated_vocab = __update_charmap(vocabulary, new_vocab)
     encoded = __encode(text, updated_vocab)
     dataset = __create_dataset(
         encoded, seq_length=seq_length, buffer_size=buffer_size, batch_size=batch_size
@@ -86,7 +87,7 @@ def train_existing_model(
         model_name, len(updated_vocab), batch_size, embedding_dim, rnn_units
     )
     __train_model(model, dataset, model_name, epoch_count=epoch_count)
-    return vocabulary
+    return updated_vocab
 
 
 def __train_model(model, dataset, model_name: str, epoch_count: int) -> None:

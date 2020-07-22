@@ -2,9 +2,13 @@ import random
 from concurrent.futures.thread import ThreadPoolExecutor
 from brapper.data import lyrics_downloader as LyricsDownloader
 from brapper.nlp import learner as Learner
-from brapper.server import LyricsDAODTO, VocabDAODTO
-from brapper.config.ctl_config import NEW_MODEL_AGE_DAYS, NEW_SONG_AGE_DAYS
-from brapper.config.ml_config import MIN_EPOCH_COUNT, MAX_EPOCH_COUNT
+from brapper.server import LyricsDAODTO, ModelDAODTO
+from brapper.config.ctl_config import (
+    NEW_MODEL_AGE_DAYS,
+    NEW_SONG_AGE_DAYS,
+    MIN_EPOCH_COUNT,
+    MAX_EPOCH_COUNT,
+)
 
 
 class Controller:
@@ -88,13 +92,9 @@ class Controller:
 
     # API HANDLER
     def get_all_models_in_db(self) -> list:
-        daodtos = VocabDAODTO.get_all()
+        daodtos = ModelDAODTO.get_all()
         return [
-            {
-                "_id": str(daodto._id),
-                "model_name": daodto.model_name,
-                "created": daodto.created,
-            }
+            {"_id": str(daodto._id), "name": daodto.name, "created": daodto.created,}
             for daodto in daodtos
         ]
 
@@ -103,18 +103,15 @@ class Controller:
         self.logger.info(
             f"Attempting to train new model {model_name} for {epoch_count} epochs"
         )
-        saved_models = VocabDAODTO.get_all()
-        saved_artist_ids = [str(daodto._id) for daodto in LyricsDAODTO.get_all()]
-        if not all([artist_id in saved_artist_ids for artist_id in artists]):
-            raise JobNotStartedError(f"Artist ID {id} not found in the database", 422)
         if not MIN_EPOCH_COUNT <= epoch_count <= MAX_EPOCH_COUNT:
             raise JobNotStartedError(
                 f"Epoch count not right - use value {MIN_EPOCH_COUNT} <= x <= {MAX_EPOCH_COUNT}",
                 422,
             )
+        saved_models = ModelDAODTO.get_all()
         for entry in saved_models:
-            if model_name == entry.model_name:
-                if entry.chars:
+            if model_name == entry.name:
+                if entry.vocabulary:
                     raise JobNotStartedError(
                         "This model name is already taken, please choose a different one",
                         409,
@@ -127,12 +124,7 @@ class Controller:
                 else:
                     entry.delete()
                     break
-
-        just_lyrics = [
-            LyricsDAODTO.get_by_id(artist_id).lyrics for artist_id in artists
-        ]
-        train_text = "".join(just_lyrics)
-
+        train_text = self.__get_text_from_artist_ids(artists)
         job_id = random.randint(1, 100000)
         self.logger.info(f"Submitting train job with id {job_id}")
         self.thread_pool.submit(
@@ -143,13 +135,72 @@ class Controller:
 
     def __train_new_model(
         self, model_name: str, text: str, epoch_count: int, job_id: int
-    ):
-        db_entry = VocabDAODTO(model_name, []).save()
-        db_entry.chars = self.learner.train_new_model(model_name, text, epoch_count)
+    ) -> None:
+        db_entry = ModelDAODTO(model_name, []).save()
+        db_entry.vocabulary = self.learner.train_new_model(
+            model_name, text, epoch_count
+        )
         db_entry.save()
+        self.logger.info(f"New model {model_name} finished training and was saved into the database")
         self.running_jobs[
             job_id
         ] = f"Model {model_name} trained for {epoch_count} epochs"
+
+    def train_existing_model(
+        self, model_id: str, artists: list, epoch_count: int
+    ) -> int:
+        self.logger.info(
+            f"Attempting to retrain new model {model_id} for {epoch_count} epochs"
+        )
+        if not MIN_EPOCH_COUNT <= epoch_count <= MAX_EPOCH_COUNT:
+            raise JobNotStartedError(
+                f"Epoch count not right - use value {MIN_EPOCH_COUNT} <= x <= {MAX_EPOCH_COUNT}",
+                422,
+            )
+        model = ModelDAODTO.get_by_id(model_id)
+        if not model:
+            raise JobNotStartedError(
+                f"Model ID {model_id} not found - try a different one", 422
+            )
+        train_text = self.__get_text_from_artist_ids(artists)
+        job_id = random.randint(1, 100000)
+        self.logger.info(f"Submitting retrain job with id {job_id}")
+        self.thread_pool.submit(
+            self.__train_existing_model,
+            model,
+            train_text,
+            epoch_count,
+            job_id,
+        )
+        self.running_jobs[job_id] = None
+        return job_id
+
+    def __train_existing_model(
+        self,
+        model: ModelDAODTO,
+        text: str,
+        epoch_count: int,
+        job_id: int,
+    ) -> None:
+        model.vocabulary = self.learner.train_existing_model(
+            model.name, model.vocabulary, text, epoch_count
+        )
+        model.save()
+        self.logger.info(f"Existing model {model.name} finished training and was saved into the database")
+        self.running_jobs[
+            job_id
+        ] = f"Model {model_name} retrained for {epoch_count} epochs"
+
+    def __get_text_from_artist_ids(self, artist_ids: list) -> str:
+        try:
+            just_lyrics = [
+                LyricsDAODTO.get_by_id(artist_id).lyrics for artist_id in artist_ids
+            ]
+            return "".join(just_lyrics)
+        except AttributeError:
+            raise JobNotStartedError(
+                f"Invalid artist IDs - not found in the database", 422
+            )
 
 
 class JobNotStartedError(Exception):

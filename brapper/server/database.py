@@ -1,5 +1,6 @@
 from pymongo import MongoClient, errors as pymongo_errors
 from bson.objectid import ObjectId
+from bson.errors import InvalidId
 from datetime import datetime
 
 from brapper.config.server_config import DB_PASS, DB_URI, DB_USER, DB_TIME_FORMAT
@@ -63,8 +64,11 @@ class BaseDAODTO(dict):
 
     @classmethod
     def get_by_id(cls, _id: str):
-        result = db[cls.db_name].find_one({"_id": ObjectId(_id)})
-        return cls.load_from_dict(result)
+        try:
+            result = db[cls.db_name].find_one({"_id": ObjectId(_id)})
+            return cls.load_from_dict(result)
+        except (AttributeError, InvalidId):
+            return None
 
     @classmethod
     def load_from_dict(cls, db_dict: dict):
@@ -99,22 +103,22 @@ class LyricsDAODTO(BaseDAODTO):
         )
 
 
-class VocabDAODTO(BaseDAODTO):
+class ModelDAODTO(BaseDAODTO):
 
-    db_name = "vocabs"
+    db_name = "models"
 
     def __init__(
-        self, model_name: str, chars: list, created: datetime = None, _id=None,
+        self, name: str, vocabulary: list, created: datetime = None, _id=None,
     ):
         super().__init__(_id, created)
-        self.model_name = model_name
-        self.chars = chars
+        self.name = name
+        self.vocabulary = vocabulary
 
     @staticmethod
     def load_from_dict(db_dict: dict):
-        return VocabDAODTO(
-            db_dict.get("model_name"),
-            db_dict.get("chars"),
+        return ModelDAODTO(
+            db_dict.get("name"),
+            db_dict.get("vocabulary"),
             db_dict.get("created"),
             db_dict.get("_id"),
         )

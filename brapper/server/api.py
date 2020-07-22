@@ -54,11 +54,30 @@ def create_model():
     model_name = request.json.get("model_name").replace(" ", "-")
     artists = request.json.get("based_on")
     epochs = request.json.get("epochs")
-    if not isinstance(epochs, int):
+    if not isinstance(epochs, int) or not isinstance(artists, list) or not artists:
         abort(400)
     response = {
         "job_id": ctl.train_new_model(model_name, artists, epochs),
         "info": f"Model {model_name} will be trained shortly",
+    }
+    return jsonify(response), 202
+
+
+@server.route(f"{BASE_API_URL}/models/<string:model_id>", methods=["POST"])
+def train_model(model_id: str):
+    if (
+        not request.json
+        or "based_on" not in request.json
+        or "epochs" not in request.json
+    ):
+        abort(400)
+    artists = request.json.get("based_on")
+    epochs = request.json.get("epochs")
+    if not isinstance(epochs, int) or not isinstance(artists, list) or not artists:
+        abort(400)
+    response = {
+        "job_id": ctl.train_existing_model(model_id, artists, epochs),
+        "info": f"Selected model will be trained shortly",
     }
     return jsonify(response), 202
 
