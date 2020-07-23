@@ -62,8 +62,8 @@ def train_new_model(
         embedding_dim=embedding_dim,
         rnn_units=rnn_units,
     )
-    __train_model(model, dataset, model_name, epoch_count=epoch_count)
-    return vocabulary
+    training = __train_model(model, dataset, model_name, epoch_count=epoch_count)
+    return vocabulary, training.history.get("loss")[-1]
 
 
 def train_existing_model(
@@ -86,8 +86,8 @@ def train_existing_model(
     model = __load_model(
         model_name, len(updated_vocab), batch_size, embedding_dim, rnn_units
     )
-    __train_model(model, dataset, model_name, epoch_count=epoch_count)
-    return updated_vocab
+    training = __train_model(model, dataset, model_name, epoch_count=epoch_count)
+    return updated_vocab, training.history.get("loss")[-1]
 
 
 def __train_model(model, dataset, model_name: str, epoch_count: int) -> None:
@@ -97,7 +97,7 @@ def __train_model(model, dataset, model_name: str, epoch_count: int) -> None:
             labels, logits, from_logits=True
         ),
     )
-    model.fit(
+    return model.fit(
         dataset,
         epochs=epoch_count,
         callbacks=[__create_checkpoint_callback(model_name)],
@@ -214,4 +214,4 @@ def __decode(encoded_text: list, char_map: list) -> str:
 
 
 if __name__ == "__main__":
-    pass
+    train_new_model("test", "asdsagsagasiogkasogpasgposalgpaslgpsalgpslgasf", 2)

@@ -65,25 +65,21 @@ class Controller:
                 else:
                     entry.delete()
                     break
-
+        # Save empty right away to avoid double downloads
+        db_entry = LyricsDAODTO(real_name, "", 0).save()
         job_id = random.randint(1, 100000)
         self.logger.info(f"Submitting download job with id {job_id}")
         self.thread_pool.submit(
-            self.__download_and_save_lyrics, artist_id, real_name, job_id
+            self.__download_and_save_lyrics, artist_id, db_entry, job_id
         )
         self.running_jobs[job_id] = None
         return job_id, real_name
 
     def __download_and_save_lyrics(
-        self, artist_id: int, artist_name: str, job_id: int
+        self, artist_id: int, artist: LyricsDAODTO, job_id: int
     ) -> None:
-        db_entry = LyricsDAODTO(
-            artist_name, "", 0
-        ).save()  # save empty to avoid double downloads
-        lyrics, song_count = self.lyrics_downloader.download_artist_songs(artist_id)
+        artist.lyrics, artist.song_count = self.lyrics_downloader.download_artist_songs(artist_id)
         self.logger.info(f"Lyrics for {artist_name} downloaded")
-        db_entry.lyrics = lyrics
-        db_entry.song_count = song_count
         db_entry.save()
         self.logger.info(f"Lyrics for {artist_name} saved into the database")
         self.running_jobs[
@@ -94,7 +90,12 @@ class Controller:
     def get_all_models_in_db(self) -> list:
         daodtos = ModelDAODTO.get_all()
         return [
-            {"_id": str(daodto._id), "name": daodto.name, "created": daodto.created,}
+            {
+                "_id": str(daodto._id),
+                "name": daodto.name,
+                "last_loss": daodto.last_loss,
+                "created": daodto.created,
+            }
             for daodto in daodtos
         ]
 
@@ -124,24 +125,27 @@ class Controller:
                 else:
                     entry.delete()
                     break
+        # Save empty right away to avoid double training
+        db_entry = ModelDAODTO(model_name, [], -1).save()
         train_text = self.__get_text_from_artist_ids(artists)
         job_id = random.randint(1, 100000)
         self.logger.info(f"Submitting train job with id {job_id}")
         self.thread_pool.submit(
-            self.__train_new_model, model_name, train_text, epoch_count, job_id
+            self.__train_new_model, db_entry, train_text, epoch_count, job_id
         )
         self.running_jobs[job_id] = None
         return job_id
 
     def __train_new_model(
-        self, model_name: str, text: str, epoch_count: int, job_id: int
+        self, model: ModelDAODTO, text: str, epoch_count: int, job_id: int
     ) -> None:
-        db_entry = ModelDAODTO(model_name, []).save()
-        db_entry.vocabulary = self.learner.train_new_model(
-            model_name, text, epoch_count
+        model.vocabulary, model.last_loss = self.learner.train_new_model(
+            model.name, text, epoch_count
         )
-        db_entry.save()
-        self.logger.info(f"New model {model_name} finished training and was saved into the database")
+        model.save()
+        self.logger.info(
+            f"New model {model_name} finished training and was saved into the database"
+        )
         self.running_jobs[
             job_id
         ] = f"Model {model_name} trained for {epoch_count} epochs"
@@ -157,8 +161,8 @@ class Controller:
                 f"Epoch count not right - use value {MIN_EPOCH_COUNT} <= x <= {MAX_EPOCH_COUNT}",
                 422,
             )
-        model = ModelDAODTO.get_by_id(model_id)
-        if not model:
+        db_entry = ModelDAODTO.get_by_id(model_id)
+        if not db_entry:
             raise JobNotStartedError(
                 f"Model ID {model_id} not found - try a different one", 422
             )
@@ -166,27 +170,21 @@ class Controller:
         job_id = random.randint(1, 100000)
         self.logger.info(f"Submitting retrain job with id {job_id}")
         self.thread_pool.submit(
-            self.__train_existing_model,
-            model,
-            train_text,
-            epoch_count,
-            job_id,
+            self.__train_existing_model, db_entry, train_text, epoch_count, job_id,
         )
         self.running_jobs[job_id] = None
         return job_id
 
     def __train_existing_model(
-        self,
-        model: ModelDAODTO,
-        text: str,
-        epoch_count: int,
-        job_id: int,
+        self, model: ModelDAODTO, text: str, epoch_count: int, job_id: int,
     ) -> None:
-        model.vocabulary = self.learner.train_existing_model(
+        model.vocabulary, model.last_loss = self.learner.train_existing_model(
             model.name, model.vocabulary, text, epoch_count
         )
         model.save()
-        self.logger.info(f"Existing model {model.name} finished training and was saved into the database")
+        self.logger.info(
+            f"Existing model {model.name} finished training and was saved into the database"
+        )
         self.running_jobs[
             job_id
         ] = f"Model {model_name} retrained for {epoch_count} epochs"

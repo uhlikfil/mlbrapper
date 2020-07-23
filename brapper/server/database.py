@@ -14,7 +14,7 @@ class BaseDAODTO(dict):
 
     db_name = None
 
-    def __init__(self, _id=None, created: datetime = None):
+    def __init__(self, created: datetime = None, _id=None):
         if _id:
             self._id = _id
         if created == None:
@@ -87,7 +87,7 @@ class LyricsDAODTO(BaseDAODTO):
         created: datetime = None,
         _id=None,
     ):
-        super().__init__(_id, created)
+        super().__init__(created, _id)
         self.artist = artist
         self.lyrics = lyrics
         self.song_count = song_count
@@ -108,17 +108,24 @@ class ModelDAODTO(BaseDAODTO):
     db_name = "models"
 
     def __init__(
-        self, name: str, vocabulary: list, created: datetime = None, _id=None,
+        self,
+        name: str,
+        vocabulary: list,
+        last_loss: float,
+        created: datetime = None,
+        _id=None,
     ):
-        super().__init__(_id, created)
+        super().__init__(created, _id)
         self.name = name
         self.vocabulary = vocabulary
+        self.last_loss = last_loss
 
     @staticmethod
     def load_from_dict(db_dict: dict):
         return ModelDAODTO(
             db_dict.get("name"),
             db_dict.get("vocabulary"),
+            db_dict.get("last_loss"),
             db_dict.get("created"),
             db_dict.get("_id"),
         )
