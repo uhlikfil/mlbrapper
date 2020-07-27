@@ -131,6 +131,31 @@ class ModelDAODTO(BaseDAODTO):
         )
 
 
+class GeneratedLyricsDAODTO(BaseDAODTO):
+
+    db_name = "generated_lyrics"
+
+    def __init__(
+        self,
+        composer: str,
+        lyrics: str,
+        created: datetime = None,
+        _id=None,
+    ):
+        super().__init__(created, _id)
+        self.composer = composer
+        self.lyrics = lyrics
+
+    @staticmethod
+    def load_from_dict(db_dict: dict):
+        return GeneratedLyricsDAODTO(
+            db_dict.get("composer"),
+            db_dict.get("lyrics"),
+            db_dict.get("created"),
+            db_dict.get("_id"),
+        )
+
+
 if __name__ == "__main__":
     pass
     # l = LyricsDAODTO("eminem", "haha", 1)

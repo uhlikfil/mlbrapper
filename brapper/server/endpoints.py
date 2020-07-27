@@ -54,7 +54,7 @@ def create_model():
     model_name = request.json.get("model_name").replace(" ", "-")
     artists = request.json.get("based_on")
     epochs = request.json.get("epochs")
-    if not isinstance(epochs, int) or not isinstance(artists, list) or not artists:
+    if not (isinstance(epochs, int) and isinstance(artists, list) and artists):
         abort(400)
     response = {
         "job_id": ctl.train_new_model(model_name, artists, epochs),
@@ -73,7 +73,7 @@ def train_model(model_id: str):
         abort(400)
     artists = request.json.get("based_on")
     epochs = request.json.get("epochs")
-    if not isinstance(epochs, int) or not isinstance(artists, list) or not artists:
+    if not (isinstance(epochs, int) and isinstance(artists, list) and artists):
         abort(400)
     response = {
         "job_id": ctl.train_existing_model(model_id, artists, epochs),
@@ -86,6 +86,33 @@ def train_model(model_id: str):
 def get_all_models():
     model_list = ctl.get_all_models_in_db()
     return jsonify(model_list)
+
+
+@server.route(f"{BASE_API_URL}/compose", methods=["POST"])
+def compose():
+    if (
+        not request.json
+        or "model_id" not in request.json
+        or "start_lyrics" not in request.json
+        or "lyrics_size" not in request.json
+    ):
+        abort(400)
+    model_id = request.json.get("model_id")
+    start_lyrics = request.json.get("start_lyrics")
+    lyrics_size = request.json.get("lyrics_size")
+    if not (isinstance(model_id, str) and isinstance(start_lyrics, str) and isinstance(lyrics_size, int)):
+        abort(400)
+    response = {
+        "job_id": ctl.generate_lyrics(model_id, start_lyrics, lyrics_size),
+        "info": f"Lyrics will be generated shortly",
+    }
+    return jsonify(response), 202
+
+
+@server.route(f"{BASE_API_URL}/compose", methods=["GET"])
+def get_all_generated_lyrics():
+    lyrics_list = ctl.get_all_generated_lyrics_in_db()
+    return jsonify(lyrics_list)
 
 
 if __name__ == "__main__":

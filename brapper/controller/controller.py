@@ -1,14 +1,12 @@
 import random
 from concurrent.futures.thread import ThreadPoolExecutor
+
+from brapper.config.ctl_config import (MAX_EPOCH_COUNT, MAX_LYRICS_SIZE,
+                                       MIN_EPOCH_COUNT, MIN_LYRICS_SIZE,
+                                       NEW_MODEL_AGE_DAYS, NEW_SONG_AGE_DAYS)
 from brapper.data import lyrics_downloader as LyricsDownloader
 from brapper.nlp import learner as Learner
-from brapper.server import LyricsDAODTO, ModelDAODTO
-from brapper.config.ctl_config import (
-    NEW_MODEL_AGE_DAYS,
-    NEW_SONG_AGE_DAYS,
-    MIN_EPOCH_COUNT,
-    MAX_EPOCH_COUNT,
-)
+from brapper.server import GeneratedLyricsDAODTO, LyricsDAODTO, ModelDAODTO
 
 
 class Controller:
@@ -76,15 +74,15 @@ class Controller:
         return job_id, real_name
 
     def __download_and_save_lyrics(
-        self, artist_id: int, artist: LyricsDAODTO, job_id: int
+        self, artist_id: int, lyrics: LyricsDAODTO, job_id: int
     ) -> None:
-        artist.lyrics, artist.song_count = self.lyrics_downloader.download_artist_songs(artist_id)
-        self.logger.info(f"Lyrics for {artist_name} downloaded")
-        db_entry.save()
-        self.logger.info(f"Lyrics for {artist_name} saved into the database")
+        lyrics.lyrics, lyrics.song_count = self.lyrics_downloader.download_artist_songs(artist_id)
+        self.logger.info(f"Lyrics for {lyrics.artist} downloaded")
+        lyrics.save()
+        self.logger.info(f"Lyrics for {lyrics.artist} saved into the database")
         self.running_jobs[
             job_id
-        ] = f"{song_count} {artist_name} songs saved into the database"
+        ] = f"{lyrics.song_count} {lyrics.artist} songs saved into the database"
 
     # API HANDLER
     def get_all_models_in_db(self) -> list:
@@ -144,11 +142,11 @@ class Controller:
         )
         model.save()
         self.logger.info(
-            f"New model {model_name} finished training and was saved into the database"
+            f"New model {model.name} finished training and was saved into the database"
         )
         self.running_jobs[
             job_id
-        ] = f"Model {model_name} trained for {epoch_count} epochs"
+        ] = f"Model {model.name} trained for {epoch_count} epochs"
 
     def train_existing_model(
         self, model_id: str, artists: list, epoch_count: int
@@ -187,7 +185,7 @@ class Controller:
         )
         self.running_jobs[
             job_id
-        ] = f"Model {model_name} retrained for {epoch_count} epochs"
+        ] = f"Model {model.name} retrained for {epoch_count} epochs"
 
     def __get_text_from_artist_ids(self, artist_ids: list) -> str:
         try:
@@ -199,6 +197,53 @@ class Controller:
             raise JobNotStartedError(
                 f"Invalid artist IDs - not found in the database", 422
             )
+
+    # API HANDLER
+    def get_all_generated_lyrics_in_db(self) -> list:
+        daodtos = GeneratedLyricsDAODTO.get_all()
+        return [
+            {
+                "_id": str(daodto._id),
+                "composer": daodto.composer,
+                "lyrics": daodto.lyrics,
+                "created": daodto.created,
+            }
+            for daodto in daodtos
+        ]
+
+    # API HANDLER
+    def generate_lyrics(self, model_id: str, start_lyrics: str, lyrics_size: int):
+        self.logger.info(
+            f"Attempting to generate {lyrics_size} long lyrics from {model_id}"
+        )
+        if not MIN_LYRICS_SIZE <= lyrics_size <= MAX_LYRICS_SIZE:
+            raise JobNotStartedError(
+                f"Lyrics size not right - use value {MIN_LYRICS_SIZE} <= x <= {MAX_LYRICS_SIZE}",
+                422,
+            )
+        db_entry = ModelDAODTO.get_by_id(model_id)
+        if not db_entry:
+            raise JobNotStartedError(
+                f"Model ID {model_id} not found - try a different one", 422
+            )
+        job_id = random.randint(1, 100000)
+        self.logger.info(f"Submitting generate lyrics job with id {job_id}")
+        self.thread_pool.submit(
+            self.__generate_lyrics, db_entry, start_lyrics, lyrics_size, job_id,
+        )
+        self.running_jobs[job_id] = None
+        return job_id
+
+    def __generate_lyrics(self, model: ModelDAODTO, start_lyrics: str, lyrics_size: int, job_id: int):
+        lyrics, model.vocabulary = self.learner.generate_lyrics(model.name, model.vocabulary, start_lyrics, lyrics_size)
+        model.save()
+        db_entry = GeneratedLyricsDAODTO(model.name, lyrics).save()
+        self.logger.info(
+            f"Lyrics from were {model.name} generated and saved into the database"
+        )
+        self.running_jobs[
+            job_id
+        ] = f"Model {model.name} has generated lyrics with id {db_entry._id}"
 
 
 class JobNotStartedError(Exception):

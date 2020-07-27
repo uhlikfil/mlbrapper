@@ -1,4 +1,4 @@
-from brapper.server.api import server
+from brapper.server.endpoints import server
 import logging
 
 

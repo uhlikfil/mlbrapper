@@ -1,1 +1,1 @@
-from .database import LyricsDAODTO, ModelDAODTO
+from .database import LyricsDAODTO, ModelDAODTO, GeneratedLyricsDAODTO

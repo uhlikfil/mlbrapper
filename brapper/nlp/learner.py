@@ -19,26 +19,25 @@ from brapper.config.ml_config import (
 
 def generate_lyrics(
     model_name: str,
+    vocabulary: list,
     start_lyrics: str,
     lyrics_size: int,
     embedding_dim: int = DEF_EMBEDDING_DIMENSION,
     rnn_units: int = DEF_RNN_UNITS,
 ) -> str:
     generated_lyrics = []
-    old_vocab = __load_charmap(model_name)
-    vocabulary = __update_charmap(old_vocab, __create_charmap(start_lyrics))
-    model = __load_model(model_name, len(vocabulary), 1, embedding_dim, rnn_units)
+    updated_vocab = __update_charmap(vocabulary, __create_charmap(start_lyrics))
+    model = __load_model(model_name, len(updated_vocab), 1, embedding_dim, rnn_units)
     model.reset_states()
-    encoded_lyrics = tf.expand_dims(__encode(start_lyrics, vocabulary), 0)
+    encoded_lyrics = tf.expand_dims(__encode(start_lyrics, updated_vocab), 0)
     for i in range(lyrics_size):
-        predictions = model(encoded_lyrics)
-        predictions = tf.squeeze(predictions, 0)
-        predicted_char = tf.random.categorical(predictions, num_samples=1)[
-            -1, 0
-        ].numpy()
+        predictions = tf.squeeze(model(encoded_lyrics), 0)
+        predicted_char = tf.random.categorical(
+            predictions, num_samples=1
+        )[-1, 0].numpy()
         encoded_lyrics = tf.expand_dims([predicted_char], 0)
-        generated_lyrics.append(__decode([predicted_char], vocabulary))
-    return start_lyrics + "".join(generated_lyrics)
+        generated_lyrics.append(__decode([predicted_char], updated_vocab))
+    return start_lyrics + "".join(generated_lyrics), updated_vocab
 
 
 def train_new_model(
@@ -214,4 +213,6 @@ def __decode(encoded_text: list, char_map: list) -> str:
 
 
 if __name__ == "__main__":
-    train_new_model("test", "asdsagsagasiogkasogpasgposalgpaslgpsalgpslgasf", 2)
+    from brapper.server import ModelDAODTO
+    model = ModelDAODTO.get_by_id("5f19ab141c80da8b90f7f843")
+    generate_lyrics(model.name, model.vocabulary, "test test", 600)
