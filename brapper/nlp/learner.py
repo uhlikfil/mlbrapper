@@ -62,6 +62,9 @@ def train_new_model(
         rnn_units=rnn_units,
     )
     training = __train_model(model, dataset, model_name, epoch_count=epoch_count)
+    model.save_weights(
+        __get_model_checkpoints_path(model_name)
+    )
     return vocabulary, training.history.get("loss")[-1]
 
 
@@ -86,6 +89,9 @@ def train_existing_model(
         model_name, len(updated_vocab), batch_size, embedding_dim, rnn_units
     )
     training = __train_model(model, dataset, model_name, epoch_count=epoch_count)
+    model.save_weights(
+        __get_model_checkpoints_path(model_name)
+    )
     return updated_vocab, training.history.get("loss")[-1]
 
 
@@ -99,7 +105,6 @@ def __train_model(model, dataset, model_name: str, epoch_count: int) -> None:
     return model.fit(
         dataset,
         epochs=epoch_count,
-        callbacks=[__create_checkpoint_callback(model_name)],
     )
 
 
@@ -117,7 +122,7 @@ def __load_model(
         rnn_units=rnn_units,
     )
     model.load_weights(
-        tf.train.latest_checkpoint(MODELS_PATH.joinpath(model_name))
+        __get_model_checkpoints_path(model_name)
     ).expect_partial()
     model.build(tf.TensorShape([1, None]))
     return model
@@ -144,17 +149,6 @@ def __build_model(
     )
 
 
-def __create_checkpoint_callback(model_name: str):
-    """ Creates a ModelCheckpoint tf callback - the model state is saved after each epoch
-    :param model_name:str: Directory name in which the checkpoints are saved
-    :rtype: Model checkpoint callback
-    """
-    return tf.keras.callbacks.ModelCheckpoint(
-        filepath=str(MODELS_PATH.joinpath(model_name, "cp_{epoch}")),
-        save_weights_only=True,
-    )
-
-
 def __create_dataset(
     encoded_text: str, seq_length: int, buffer_size: int, batch_size: int,
 ) -> list:
@@ -176,6 +170,10 @@ def __create_dataset(
     inp_outp_dataset = sequences.map(lambda batch: (batch[:-1], batch[1:]))
     # shuffle the training data and batch it again
     return inp_outp_dataset.shuffle(buffer_size).batch(batch_size, drop_remainder=True)
+
+
+def __get_model_checkpoints_path(model_name: str) -> str:
+    return str(MODELS_PATH / model_name / "cp")
 
 
 def __create_charmap(text: str) -> list:
@@ -214,5 +212,5 @@ def __decode(encoded_text: list, char_map: list) -> str:
 
 if __name__ == "__main__":
     from brapper.server import ModelDAODTO
-    model = ModelDAODTO.get_by_id("5f19ab141c80da8b90f7f843")
+    model = ModelDAODTO.get_by_id("5f200d5a452e28b9414f864b")
     generate_lyrics(model.name, model.vocabulary, "test test", 600)
