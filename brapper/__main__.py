@@ -1,5 +1,6 @@
 from brapper.server.endpoints import server
 import logging
+import waitress
 
 
 def init_logging():
@@ -15,5 +16,5 @@ def init_logging():
 
 if __name__ == "__main__":
     init_logging()
-
-    server.run(debug=False)
+    waitress.serve(server, host='0.0.0.0', port=5000)
+    #server.run(debug=False)
