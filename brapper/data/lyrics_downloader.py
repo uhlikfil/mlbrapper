@@ -1,7 +1,7 @@
-import requests
 import re
-from bs4 import BeautifulSoup
 
+import requests
+from bs4 import BeautifulSoup
 
 max_songs_per_page = 50
 

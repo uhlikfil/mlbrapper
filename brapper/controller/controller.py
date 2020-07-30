@@ -1,9 +1,14 @@
 import random
 from concurrent.futures.thread import ThreadPoolExecutor
 
-from brapper.config.ctl_config import (MAX_EPOCH_COUNT, MAX_LYRICS_SIZE,
-                                       MIN_EPOCH_COUNT, MIN_LYRICS_SIZE,
-                                       NEW_MODEL_AGE_DAYS, NEW_SONG_AGE_DAYS)
+from brapper.config.ctl_config import (
+    MAX_EPOCH_COUNT,
+    MAX_LYRICS_SIZE,
+    MIN_EPOCH_COUNT,
+    MIN_LYRICS_SIZE,
+    NEW_MODEL_AGE_DAYS,
+    NEW_SONG_AGE_DAYS,
+)
 from brapper.data import lyrics_downloader as LyricsDownloader
 from brapper.nlp import learner as Learner
 from brapper.server import GeneratedLyricsDAODTO, LyricsDAODTO, ModelDAODTO
@@ -76,7 +81,9 @@ class Controller:
     def __download_and_save_lyrics(
         self, artist_id: int, lyrics: LyricsDAODTO, job_id: int
     ) -> None:
-        lyrics.lyrics, lyrics.song_count = self.lyrics_downloader.download_artist_songs(artist_id)
+        lyrics.lyrics, lyrics.song_count = self.lyrics_downloader.download_artist_songs(
+            artist_id
+        )
         self.logger.info(f"Lyrics for {lyrics.artist} downloaded")
         lyrics.save()
         self.logger.info(f"Lyrics for {lyrics.artist} saved into the database")
@@ -234,8 +241,12 @@ class Controller:
         self.running_jobs[job_id] = None
         return job_id
 
-    def __generate_lyrics(self, model: ModelDAODTO, start_lyrics: str, lyrics_size: int, job_id: int):
-        lyrics, model.vocabulary = self.learner.generate_lyrics(model.name, model.vocabulary, start_lyrics, lyrics_size)
+    def __generate_lyrics(
+        self, model: ModelDAODTO, start_lyrics: str, lyrics_size: int, job_id: int
+    ):
+        lyrics, model.vocabulary = self.learner.generate_lyrics(
+            model.name, model.vocabulary, start_lyrics, lyrics_size
+        )
         model.save()
         db_entry = GeneratedLyricsDAODTO(model.name, lyrics).save()
         self.logger.info(

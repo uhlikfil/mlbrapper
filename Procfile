@@ -1,1 +1,1 @@
-web: python -m brapper
+web: waitress-serve --port=5000 brapper:app

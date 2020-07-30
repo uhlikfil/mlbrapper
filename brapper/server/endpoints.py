@@ -1,14 +1,13 @@
-from flask import Flask, abort, jsonify, request
+from flask import abort, jsonify, request
 
+from brapper import app
 from brapper.config.server_config import BASE_API_URL
 from brapper.controller import Controller, JobNotStartedError
 
-
-server = Flask(__name__.split(".")[0])
-ctl = Controller(server.logger)
+ctl = Controller(app.logger)
 
 
-@server.errorhandler(JobNotStartedError)
+@app.errorhandler(JobNotStartedError)
 def handle_job_not_started(error):
     response = {
         "job_id": None,
@@ -17,13 +16,13 @@ def handle_job_not_started(error):
     return jsonify(response), error.status_code
 
 
-@server.route(f"{BASE_API_URL}/jobs/<int:job_id>", methods=["GET"])
+@app.route(f"{BASE_API_URL}/jobs/<int:job_id>", methods=["GET"])
 def is_job_finished(job_id: int):
     is_finished, info = ctl.is_job_finished(job_id)
     return {"job_id": job_id, "is_finished": is_finished, "info": info}
 
 
-@server.route(f"{BASE_API_URL}/lyrics", methods=["POST"])
+@app.route(f"{BASE_API_URL}/lyrics", methods=["POST"])
 def create_lyrics():
     if not request.json or "artist" not in request.json:
         abort(400)
@@ -36,13 +35,13 @@ def create_lyrics():
     return jsonify(response), 202
 
 
-@server.route(f"{BASE_API_URL}/lyrics", methods=["GET"])
+@app.route(f"{BASE_API_URL}/lyrics", methods=["GET"])
 def get_all_lyrics():
     artist_list = ctl.get_all_artists_in_db()
     return jsonify(artist_list)
 
 
-@server.route(f"{BASE_API_URL}/models", methods=["POST"])
+@app.route(f"{BASE_API_URL}/models", methods=["POST"])
 def create_model():
     if (
         not request.json
@@ -63,7 +62,7 @@ def create_model():
     return jsonify(response), 202
 
 
-@server.route(f"{BASE_API_URL}/models/<string:model_id>", methods=["POST"])
+@app.route(f"{BASE_API_URL}/models/<string:model_id>", methods=["POST"])
 def train_model(model_id: str):
     if (
         not request.json
@@ -82,13 +81,13 @@ def train_model(model_id: str):
     return jsonify(response), 202
 
 
-@server.route(f"{BASE_API_URL}/models", methods=["GET"])
+@app.route(f"{BASE_API_URL}/models", methods=["GET"])
 def get_all_models():
     model_list = ctl.get_all_models_in_db()
     return jsonify(model_list)
 
 
-@server.route(f"{BASE_API_URL}/compose", methods=["POST"])
+@app.route(f"{BASE_API_URL}/compose", methods=["POST"])
 def compose():
     if (
         not request.json
@@ -100,7 +99,11 @@ def compose():
     model_id = request.json.get("model_id")
     start_lyrics = request.json.get("start_lyrics")
     lyrics_size = request.json.get("lyrics_size")
-    if not (isinstance(model_id, str) and isinstance(start_lyrics, str) and isinstance(lyrics_size, int)):
+    if not (
+        isinstance(model_id, str)
+        and isinstance(start_lyrics, str)
+        and isinstance(lyrics_size, int)
+    ):
         abort(400)
     response = {
         "job_id": ctl.generate_lyrics(model_id, start_lyrics, lyrics_size),
@@ -109,11 +112,7 @@ def compose():
     return jsonify(response), 202
 
 
-@server.route(f"{BASE_API_URL}/compose", methods=["GET"])
+@app.route(f"{BASE_API_URL}/compose", methods=["GET"])
 def get_all_generated_lyrics():
     lyrics_list = ctl.get_all_generated_lyrics_in_db()
     return jsonify(lyrics_list)
-
-
-if __name__ == "__main__":
-    pass

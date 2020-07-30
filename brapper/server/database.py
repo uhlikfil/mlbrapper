@@ -1,10 +1,11 @@
-from pymongo import MongoClient, errors as pymongo_errors
-from bson.objectid import ObjectId
-from bson.errors import InvalidId
 from datetime import datetime
 
-from brapper.config.server_config import DB_PASS, DB_URI, DB_USER, DB_TIME_FORMAT
+from bson.errors import InvalidId
+from bson.objectid import ObjectId
+from pymongo import MongoClient
+from pymongo import errors as pymongo_errors
 
+from brapper.config.server_config import DB_PASS, DB_TIME_FORMAT, DB_URI, DB_USER
 
 client = MongoClient(f"mongodb+srv://{DB_USER}:{DB_PASS}@{DB_URI}")
 db = client.brapper
@@ -136,11 +137,7 @@ class GeneratedLyricsDAODTO(BaseDAODTO):
     db_name = "generated_lyrics"
 
     def __init__(
-        self,
-        composer: str,
-        lyrics: str,
-        created: datetime = None,
-        _id=None,
+        self, composer: str, lyrics: str, created: datetime = None, _id=None,
     ):
         super().__init__(created, _id)
         self.composer = composer
@@ -158,5 +155,3 @@ class GeneratedLyricsDAODTO(BaseDAODTO):
 
 if __name__ == "__main__":
     pass
-    # l = LyricsDAODTO("eminem", "haha", 1)
-    # l.save()

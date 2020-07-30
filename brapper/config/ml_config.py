@@ -1,4 +1,4 @@
-from . import rscs_base_path
+from pathlib import Path
 
 DEF_SEQ_LEN = 10
 DEF_BUFFER_SIZE = 1000
@@ -7,7 +7,7 @@ DEF_EMBEDDING_DIMENSION = 256
 DEF_RNN_UNITS = 1024
 DEF_EPOCH_COUNT = 50
 
-MODELS_PATH = rscs_base_path.joinpath("models")
+MODELS_PATH = Path(__file__).parents[1] / "resources" / "models"
 
 VOCAB_SIZE = 300
 VOCAB_PLACEHOLDER = "UNDEF"

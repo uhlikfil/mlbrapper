@@ -32,9 +32,9 @@ def generate_lyrics(
     encoded_lyrics = tf.expand_dims(__encode(start_lyrics, updated_vocab), 0)
     for i in range(lyrics_size):
         predictions = tf.squeeze(model(encoded_lyrics), 0)
-        predicted_char = tf.random.categorical(
-            predictions, num_samples=1
-        )[-1, 0].numpy()
+        predicted_char = tf.random.categorical(predictions, num_samples=1)[
+            -1, 0
+        ].numpy()
         encoded_lyrics = tf.expand_dims([predicted_char], 0)
         generated_lyrics.append(__decode([predicted_char], updated_vocab))
     return start_lyrics + "".join(generated_lyrics), updated_vocab
@@ -62,9 +62,7 @@ def train_new_model(
         rnn_units=rnn_units,
     )
     training = __train_model(model, dataset, model_name, epoch_count=epoch_count)
-    model.save_weights(
-        __get_model_checkpoints_path(model_name)
-    )
+    model.save_weights(__get_model_checkpoints_path(model_name))
     return vocabulary, training.history.get("loss")[-1]
 
 
@@ -89,9 +87,7 @@ def train_existing_model(
         model_name, len(updated_vocab), batch_size, embedding_dim, rnn_units
     )
     training = __train_model(model, dataset, model_name, epoch_count=epoch_count)
-    model.save_weights(
-        __get_model_checkpoints_path(model_name)
-    )
+    model.save_weights(__get_model_checkpoints_path(model_name))
     return updated_vocab, training.history.get("loss")[-1]
 
 
@@ -102,10 +98,7 @@ def __train_model(model, dataset, model_name: str, epoch_count: int) -> None:
             labels, logits, from_logits=True
         ),
     )
-    return model.fit(
-        dataset,
-        epochs=epoch_count,
-    )
+    return model.fit(dataset, epochs=epoch_count,)
 
 
 def __load_model(
@@ -121,9 +114,7 @@ def __load_model(
         embedding_dim=embedding_dim,
         rnn_units=rnn_units,
     )
-    model.load_weights(
-        __get_model_checkpoints_path(model_name)
-    ).expect_partial()
+    model.load_weights(__get_model_checkpoints_path(model_name)).expect_partial()
     model.build(tf.TensorShape([1, None]))
     return model
 
@@ -212,5 +203,6 @@ def __decode(encoded_text: list, char_map: list) -> str:
 
 if __name__ == "__main__":
     from brapper.server import ModelDAODTO
+
     model = ModelDAODTO.get_by_id("5f200d5a452e28b9414f864b")
     generate_lyrics(model.name, model.vocabulary, "test test", 600)
